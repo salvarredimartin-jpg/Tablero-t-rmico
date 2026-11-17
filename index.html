@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel de temperaturas</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef1f0;--sf:#fff;--tx:#17211e;--mu:#5d6b66;--ln:#d5dcd9;--ok:#1b8a63;--wn:#d98e0b;--bd:#d2402f;--na:#7b8985;--ac:#0f4c5c;--okb:#e1f3ec;--wnb:#fbf0d6;--bdb:#fbe3df;--nab:#e6eae9}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121816;--sf:#1b2321;--tx:#e8eeeb;--mu:#93a39c;--ln:#2f3b37;--ok:#3cc490;--wn:#f0b13d;--bd:#ff7766;--na:#9aa8a3;--ac:#6cc3d5;--okb:#17332a;--wnb:#392d12;--bdb:#3d1d19;--nab:#2a3330}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--sf);border-bottom:1px solid var(--ln)}
+h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 10px}h3{font-size:15px;margin:0}.mu{color:var(--mu);font-size:13px}
+nav{display:flex;gap:4px}nav button{border:0;background:none;color:var(--mu);padding:8px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}nav button.on{background:var(--ac);color:var(--bg)}
+main{max-width:1200px;margin:0 auto;padding:18px 16px 40px}.hide{display:none}
+.plant{margin-bottom:26px}.plant>h2{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ac);padding-bottom:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:14px}
+.area{border-left:8px solid var(--ln);cursor:pointer}
+.ok{border-left-color:var(--ok);background:linear-gradient(90deg,var(--okb),var(--sf) 40%)}.wn{border-left-color:var(--wn);background:linear-gradient(90deg,var(--wnb),var(--sf) 40%)}
+.bd{border-left-color:var(--bd);background:linear-gradient(90deg,var(--bdb),var(--sf) 40%)}.na{border-left-color:var(--na);background:linear-gradient(90deg,var(--nab),var(--sf) 40%)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.dot{width:14px;height:14px;border-radius:50%;flex:none;background:var(--c)}
+.ok{--c:var(--ok)}.wn{--c:var(--wn)}.bd{--c:var(--bd)}.na{--c:var(--na)}
+.big{font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1.1;margin:6px 0 2px}.st{font-weight:700;font-size:13px;color:var(--c)}
+.sr{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0;border-top:1px dashed var(--ln)}
+.det{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}.det .card{min-width:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}.stats div{background:var(--bg);border-radius:8px;padding:6px 8px;text-align:center}.stats b{display:block;font-size:17px}
+.scroll{overflow-x:auto}svg{width:100%;height:auto;display:block}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--ln)}th{color:var(--mu);font-weight:600}
+input,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:5px 7px;max-width:100%}input[type=number]{width:78px}input[type=checkbox]{width:18px;height:18px}
+.b{background:var(--ac);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}.g{background:none;color:var(--mu);border:1px solid var(--ln);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+.pill{font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;color:var(--c);background:var(--bg)}.sec{margin:26px 0 10px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}label{font-size:13px;color:var(--mu)}
+</style></head><body>
+<header><div><h1>Panel de temperaturas</h1><div class="mu" id="upd">Cargando…</div></div>
+<nav><button data-t="dash" class="on">Tablero</button><button data-t="cfg">Configuración</button></nav></header>
+<main><section id="dash"></section><section id="cfg" class="hide"></section></main>
+<script>
+const URL0='https://script.google.com/macros/s/AKfycbwUzi3ZKs_cDVZwKs02HmKS99aDqU18aCCK5jlTyHv1nOu_e4iEIZHWQ5aKjP-rXCda/exec';
+const $=s=>document.querySelector(s),COL=['#2f80c8','#d4622a','#1b9a6c','#8a55c4'];
+const LT={ok:'En rango',wn:'Próxima a alarma',bd:'Fuera de rango',na:'Sin datos recientes'};
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let D=null,CFG=null,ADM='',tm;
+const url=()=>LS.get('pt-url')||URL0,tok=()=>LS.get('pt-tok')||'';
+const age=s=>s<5400?Math.round(s/60)+' min':s<172800?Math.round(s/3600)+' h':Math.round(s/86400)+' d';
+const fmt=t=>new Date(t*1000).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+async function api(q){const r=await fetch(url()+'?token='+encodeURIComponent(tok())+q),j=await r.json();if(j.error)throw new Error(j.error);return j}
+async function post(b){const r=await fetch(url(),{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({token:tok()},b))}),j=await r.json();if(j.error)throw new Error(j.error);return j}
+const cm=(t,bad)=>{const m=$('#c-msg');if(m){m.textContent=t;m.style.color=bad?'var(--bd)':'var(--ok)'}};
+function mkt(v){if(!v.length)return NaN;const k=10000;return k/-Math.log(v.reduce((a,t)=>a+Math.exp(-k/(t+273.15)),0)/v.length)-273.15}
+function sens(){const s=[];D.equipos.forEach(e=>{if(!e.activo)return;
+ const cs=(e.canales&&e.canales.length?e.canales:[{n:'1',nombre:'Temperatura',u:'C'}]).filter(c=>/^°?C$/i.test(c.u||'C'));
+ cs.forEach(c=>s.push({id:e.serial+'-'+c.n,eq:e,nombre:cs.length>1?e.nombre+' · '+c.nombre:e.nombre,
+  d:e.lecturas.map(r=>[r[0],r[+c.n]]).filter(r=>typeof r[1]==='number')}))});return s}
+function autoCfg(){const areas=[],assign={};D.equipos.filter(e=>e.activo).forEach(e=>areas.push({id:'a'+e.serial,name:e.nombre,plant:e.planta,min:15,max:25,m:10}));
+ sens().forEach(s=>assign[s.id]='a'+s.eq.serial);return{areas,assign,stale:45}}
+function info(a){const now=Date.now()/1000,ss=sens().filter(s=>CFG.assign[s.id]===a.id),mg=(a.max-a.min)*a.m/100,mid=(a.min+a.max)/2;
+ let st='ok',fresh=0,stale=[],all=[],al=[],mn=Infinity,mx=-Infinity,sum=0;
+ ss.forEach(s=>{const l=s.d[s.d.length-1];
+  if(!l||now-l[0]>CFG.stale*60)stale.push(s);else{fresh++;const v=l[1];if(v<a.min||v>a.max)st='bd';else if(st!=='bd'&&(v<a.min+mg||v>a.max-mg))st='wn'}
+  let c=null;s.d.forEach(r=>{const v=r[1],o=v<a.min||v>a.max;all.push(v);if(v<mn)mn=v;if(v>mx)mx=v;sum+=v;
+   if(o&&!c)c={s:s.nombre,t:r[0],ext:v};else if(o&&Math.abs(v-mid)>Math.abs(c.ext-mid))c.ext=v;
+   if(c&&!o){c.e=r[0];al.push(c);c=null}});if(c){c.e=null;al.push(c)}});
+ if(!fresh)st='na';else if(stale.length&&st==='ok')st='wn';al.sort((x,y)=>y.t-x.t);
+ return{ss,st,stale,al,all,min:mn,max:mx,avg:all.length?sum/all.length:NaN,mkt:mkt(all)}}
+const f1=v=>isFinite(v)?v.toFixed(1)+'°':'–';
+function chart(a,I){if(!I.ss.length)return'<p class="mu">Sin sensores asignados.</p>';
+ const W=600,H=190,p=34,t1=Date.now()/1000,t0=t1-86400,lo=Math.min(a.min,isFinite(I.min)?I.min:a.min)-1,hi=Math.max(a.max,isFinite(I.max)?I.max:a.max)+1;
+ const X=t=>p+(t-t0)/86400*(W-p-8),Y=v=>H-24-(v-lo)/(hi-lo)*(H-34);
+ let g=`<rect x="${p}" y="${Y(a.max)}" width="${W-p-8}" height="${Y(a.min)-Y(a.max)}" fill="var(--ok)" opacity=".13"/>`;
+ [a.min,a.max].forEach(v=>g+=`<line x1="${p}" x2="${W-8}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--bd)" stroke-dasharray="4 3"/><text x="2" y="${Y(v)+4}" font-size="11" fill="var(--mu)">${v}°</text>`);
+ for(let k=0;k<=4;k++){const t=t0+k*21600;g+=`<text x="${X(t)}" y="${H-6}" font-size="10" fill="var(--mu)" text-anchor="${k?k==4?'end':'middle':'start'}">${new Date(t*1000).getHours()}:00</text>`}
+ I.ss.forEach((s,k)=>{let d='',pt=0;s.d.forEach(r=>{d+=(!pt||r[0]-pt>3600?'M':'L')+X(r[0]).toFixed(1)+','+Y(r[1]).toFixed(1);pt=r[0]});
+  g+=`<path d="${d}" fill="none" stroke="${COL[k%4]}" stroke-width="1.8"/>`});
+ return`<div class="scroll"><svg viewBox="0 0 ${W} ${H}">${g}</svg></div><div class="mu">${I.ss.map((s,k)=>`<span style="color:${COL[k%4]}">●</span> ${s.nombre}`).join(' &nbsp; ')}</div>`}
+function dash(){if(!D||!CFG)return;const now=Date.now()/1000,plants=[...new Set(CFG.areas.map(a=>a.plant))];let h='';
+ if(!CFG.areas.length)h='<p class="mu">Todavía no hay áreas. Creálas en Configuración.</p>';
+ plants.forEach(pn=>{const as=CFG.areas.filter(a=>a.plant===pn);h+=`<div class="plant"><h2>${pn}<span class="mu">${as.length} áreas</span></h2><div class="grid">`;
+  as.forEach(a=>{const I=info(a),last=I.ss.map(s=>s.d[s.d.length-1]).filter(Boolean).map(l=>l[1]);
+   h+=`<div class="card area ${I.st}" onclick="document.getElementById('d-${a.id}').scrollIntoView({behavior:'smooth'})"><div class="top"><h3>${a.name}</h3><span class="dot"></span></div>
+   <div class="big">${last.length?Math.max(...last).toFixed(1)+'°C':'—'}</div><div class="st">${I.ss.length?LT[I.st]:'Sin sensores'}</div>
+   <div class="mu" style="margin:4px 0 8px">Rango ${a.min}° a ${a.max}°C${I.stale.length&&I.st!=='na'?` · ${I.stale.length} sensor sin datos`:''}</div>
+   ${I.ss.map(s=>{const l=s.d[s.d.length-1],old=!l||now-l[0]>CFG.stale*60;return`<div class="sr"><span>${s.nombre}</span><b ${old?'style="color:var(--na)"':''}>${l?l[1]+'°':'–'}${old?' · hace '+(l?age(now-l[0]):'?'):''}</b></div>`}).join('')}</div>`});
+  h+='</div></div>'});
+ h+='<h2 class="sec">Detalle por área · últimas 24 hs</h2><div class="det">';
+ CFG.areas.forEach(a=>{const I=info(a),eqs=[...new Map(I.ss.map(s=>[s.eq.serial,s.eq])).values()];
+  h+=`<div class="card" id="d-${a.id}"><div class="top"><h3>${a.plant} · ${a.name}</h3><span class="pill" style="--c:var(--${I.st})">${LT[I.st]}</span></div>${chart(a,I)}
+  <div class="stats"><div class="mu">Mínima<b>${f1(I.min)}</b></div><div class="mu">Máxima<b>${f1(I.max)}</b></div><div class="mu">Promedio<b>${f1(I.avg)}</b></div><div class="mu">MKT<b>${f1(I.mkt)}</b></div></div>
+  <h3 style="margin:10px 0 4px">Baterías</h3>${eqs.map(e=>`<div class="sr"><span>${e.nombre}</span><span ${e.bateria!=null&&e.bateria<=40?'style="color:var(--bd);font-weight:700"':''}>${e.bateria!=null?e.bateria+'%':'sin dato'}</span></div>`).join('')||'<span class="mu">–</span>'}
+  <h3 style="margin:12px 0 4px">Últimas alertas</h3>${I.al.length?`<table>${I.al.slice(0,5).map(x=>`<tr><td>${fmt(x.t)}</td><td>${x.s}</td><td><b>${x.ext}°</b></td><td class="mu">${x.e==null?'en curso':Math.round((x.e-x.t)/60)+' min'}</td></tr>`).join('')}</table>`:'<span class="mu">Sin alertas en las últimas 24 hs.</span>'}</div>`});
+ $('#dash').innerHTML=h+'</div>'}
+function cfgv(){const plants=[...new Set([...D?D.equipos.map(e=>e.planta):[],...CFG?CFG.areas.map(a=>a.plant):[]])];
+ const opt=(arr,sel)=>arr.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).join('');
+ let h=`<h2>Conexión</h2><div class="card"><div class="row"><label>Servidor<br><input id="c-url" style="width:min(420px,100%)" value="${url()}"></label><label>Clave de acceso<br><input id="c-tok" type="password" autocomplete="off" value="${tok()}"></label><button class="b" onclick="conGuardar()">Guardar y conectar</button></div>
+ <h3 style="margin:8px 0 6px">Credenciales T&amp;D WebStorage</h3><p class="mu" style="margin:0 0 8px">Se guardan solo en el servidor. Esta página no las conserva.</p>
+ <div class="row"><label>Cuenta<br><select id="t-cta"><option value="1">1 · Paraná Farma</option><option value="2">2 · Florida</option></select></label><label>API Key<br><input id="t-key" type="password" autocomplete="off"></label><label>Usuario<br><input id="t-usr" autocomplete="off"></label><label>Contraseña<br><input id="t-pwd" type="password" autocomplete="new-password"></label><label>Clave de administración<br><input id="t-adm" type="password" autocomplete="off"></label></div>
+ <div class="row"><button class="b" onclick="credGuardar()">Guardar credenciales</button><button class="g" onclick="credProbar()">Probar cuenta</button><span id="c-msg" class="mu"></span></div></div>`;
+ if(CFG&&D){h+=`<h2 class="sec">Áreas y rangos de temperatura</h2><p class="mu">Cada área tiene su rango según el producto. Pre-alarma: porcentaje del ancho del rango, cerca de cada límite, donde el semáforo pasa a amarillo.</p>
+ <div class="card scroll"><table><tr><th>Área</th><th>Planta</th><th>Mínima °C</th><th>Máxima °C</th><th>Pre-alarma %</th><th></th></tr>
+ ${CFG.areas.map((a,i)=>`<tr><td><input value="${a.name}" onchange="ed(()=>CFG.areas[${i}].name=this.value)"></td><td><select onchange="ed(()=>CFG.areas[${i}].plant=this.value)">${opt(plants,a.plant)}</select></td>
+ <td><input type="number" step="0.5" value="${a.min}" onchange="ed(()=>CFG.areas[${i}].min=+this.value)"></td><td><input type="number" step="0.5" value="${a.max}" onchange="ed(()=>CFG.areas[${i}].max=+this.value)"></td>
+ <td><input type="number" min="0" max="50" value="${a.m}" onchange="ed(()=>CFG.areas[${i}].m=+this.value)"></td><td><button class="g" onclick="delA(${i})">Eliminar</button></td></tr>`).join('')}</table></div>
+ <div class="row" style="margin-top:10px"><button class="b" onclick="addA()">Agregar área</button><label>Sin datos si pasan más de (min)<br><input type="number" min="5" value="${CFG.stale}" onchange="ed(()=>CFG.stale=+this.value)"></label></div>
+ <h2 class="sec">Equipos y sensores</h2><p class="mu">Asigná varios sensores a la misma área para agruparlos (punto frío y punto caliente). Un equipo desactivado no se consulta.</p>
+ <div class="card scroll"><table><tr><th>Equipo / sensor</th><th>Estado</th><th>Activo</th><th>Área</th></tr>
+ ${D.equipos.map(e=>{const now=Date.now()/1000,ss=sens().filter(s=>s.eq.serial===e.serial),est=!e.activo?'Desactivado':e.error?'<span style="color:var(--bd)">'+e.error.slice(0,60)+'</span>':(e.ultimo?'último dato hace '+age(now-e.ultimo):'sin datos')+(e.bateria!=null?' · batería '+e.bateria+'%':'');
+  const ck=`<input type="checkbox" ${e.activo?'checked':''} onchange="setAct('${e.serial}',this.checked)">`,sel=s=>`<select onchange="ed(()=>CFG.assign['${s.id}']=this.value)"><option value="">Sin asignar</option>${CFG.areas.map(a=>`<option value="${a.id}" ${CFG.assign[s.id]===a.id?'selected':''}>${a.plant} · ${a.name}</option>`).join('')}</select>`;
+  return ss.length?ss.map((s,k)=>`<tr><td>${s.nombre}<div class="mu">${e.serial}</div></td><td class="mu">${k?'':est}</td><td>${k?'':ck}</td><td>${sel(s)}</td></tr>`).join(''):`<tr><td>${e.nombre}<div class="mu">${e.serial}</div></td><td class="mu">${est}</td><td>${ck}</td><td class="mu">${e.activo?'sin canales de temperatura':'–'}</td></tr>`}).join('')}</table></div>
+ <p class="mu">Los cambios se guardan solos en el servidor y se ven en el Tablero.</p>`}
+ $('#cfg').innerHTML=h}
+function ed(f){f();clearTimeout(tm);tm=setTimeout(async()=>{try{await post({action:'saveConfig',config:CFG});cm('Configuración guardada.')}catch(e){cm('No se pudo guardar: '+e.message,1)}},600)}
+function addA(){ed(()=>CFG.areas.push({id:'a'+Date.now(),name:'Nueva área',plant:D.equipos[0]?D.equipos[0].planta:'Planta',min:15,max:25,m:10}));cfgv()}
+function delA(i){ed(()=>{const id=CFG.areas[i].id;CFG.areas.splice(i,1);Object.keys(CFG.assign).forEach(k=>{if(CFG.assign[k]===id)delete CFG.assign[k]})});cfgv()}
+async function setAct(serial,v){if(!ADM)ADM=prompt('Clave de administración')||'';if(!ADM){await load();return cfgv()}
+ try{await post({action:'setActivo',admin:ADM,serial,activo:v});await load();cfgv();cm(v?'Equipo activado. Sus datos llegan en la próxima actualización (hasta 15 min).':'Equipo desactivado.')}catch(e){ADM='';cm(e.message,1);await load();cfgv()}}
+function conGuardar(){LS.set('pt-url',$('#c-url').value.trim());LS.set('pt-tok',$('#c-tok').value);CFG=null;load().then(cfgv)}
+async function credGuardar(){const key=$('#t-key').value.trim(),usr=$('#t-usr').value.trim(),pwd=$('#t-pwd').value,adm=$('#t-adm').value;
+ if(!key||!usr||!pwd||!adm)return cm('Completá API Key, usuario, contraseña y clave de administración.',1);cm('Enviando…');
+ try{await post({action:'saveCredentials',admin:adm,cuenta:$('#t-cta').value,key,usr,pwd});['t-key','t-usr','t-pwd','t-adm'].forEach(i=>$('#'+i).value='');cm('Credenciales guardadas en el servidor.')}catch(e){cm('Error: '+e.message,1)}}
+async function credProbar(){cm('Probando…');try{const r=await post({action:'testCredentials',cuenta:$('#t-cta').value});cm('Conexión correcta: respondieron '+r.equipos+' equipos.')}catch(e){cm('Error: '+e.message,1)}}
+async function load(){if(!tok()){$('#upd').textContent='Falta la clave de acceso. Cargala en Configuración.';show('cfg');return}
+ try{const [d,c]=await Promise.all([api('&horas=24'),CFG?null:api('&action=config')]);D=d;if(!CFG){CFG=c.config||autoCfg();if(!CFG.stale)CFG.stale=45}
+  $('#upd').textContent='Actualizado '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+' · se renueva cada 2 min';dash()}
+ catch(e){$('#upd').textContent='Sin conexión con el servidor ('+e.message+')'}}
+function show(t){document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));['dash','cfg'].forEach(x=>$('#'+x).classList.toggle('hide',x!==t));if(t==='cfg')cfgv();else dash()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.t));
+load();setInterval(()=>{if(!$('#cfg').matches(':focus-within'))load()},120000);
+</script></body></html>
